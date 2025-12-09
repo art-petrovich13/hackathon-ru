@@ -1,5 +1,5 @@
-// ProfilePage.tsx
-import React, { useState, useRef } from 'react';
+// ProfilePage.tsx - Вариант 1
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
@@ -21,7 +21,17 @@ import {
   Star,
   Upload,
   Trash2,
-  ChevronRight
+  ChevronRight,
+  Check,
+  Loader,
+  AlertCircle,
+  Folder,
+  HardDrive,
+  Image as ImageIcon,
+  Search,
+  CheckCircle,
+  Eye,
+  Download
 } from 'lucide-react';
 import './ProfilePage.scss';
 
@@ -42,35 +52,48 @@ interface UserProfile {
   interests: string[];
 }
 
+interface DiskFolder {
+  id: string;
+  name: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
+interface DiskImage {
+  id: string;
+  name: string;
+  url: string;
+  path: string;
+}
+
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'events' | 'bookmarks' | 'settings'>('profile');
+  const [isUploading, setIsUploading] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [showAvatarError, setShowAvatarError] = useState(false);
+  const [showFileExplorer, setShowFileExplorer] = useState(false);
+  const [diskFolders, setDiskFolders] = useState<DiskFolder[]>([]);
+  const [diskImages, setDiskImages] = useState<DiskImage[]>([]);
+  const [selectedImage, setSelectedImage] = useState<DiskImage | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showCameraTooltip, setShowCameraTooltip] = useState(false);
 
-  const [events, setEvents] = useState([
-    { id: 1, title: 'Выставка современного искусства', date: '25 мая 2024', status: 'участвую' },
-    { id: 2, title: 'Концерт классической музыки', date: '10 июня 2024', status: 'буду' },
-    { id: 3, title: 'Театральная премьера', date: '1 июня 2024', status: 'участвовал' },
-    { id: 4, title: 'Фестиваль уличной еды', date: '15 мая 2024', status: 'участвовал' },
-    { id: 5, title: 'Джазовый вечер в парке', date: '20 июня 2024', status: 'буду' },
-    { id: 6, title: 'Мастер-класс по фотографии', date: '5 июля 2024', status: 'участвую' },
-    { id: 7, title: 'Кинофестиваль под открытым небом', date: '12 июля 2024', status: 'буду' },
-    { id: 8, title: 'Выставка скульптур', date: '18 июля 2024', status: 'участвую' },
-    { id: 9, title: 'Концерт рок-группы', date: '25 июля 2024', status: 'буду' },
-    { id: 10, title: 'Театральный фестиваль', date: '1 августа 2024', status: 'участвовал' },
-    { id: 11, title: 'Фестиваль народной музыки', date: '8 августа 2024', status: 'участвую' },
-    { id: 12, title: 'Выставка цифрового искусства', date: '15 августа 2024', status: 'буду' },
-    { id: 13, title: 'Концерт симфонической музыки', date: '22 августа 2024', status: 'участвовал' },
-    { id: 14, title: 'Мастер-класс по живописи', date: '29 августа 2024', status: 'участвую' },
-    { id: 15, title: 'Фестиваль современного танца', date: '5 сентября 2024', status: 'буду' },
-    { id: 16, title: 'Литературный вечер с авторами', date: '12 сентября 2024', status: 'участвую' },
-    { id: 17, title: 'Спортивный марафон по городу', date: '19 сентября 2024', status: 'буду' },
-    { id: 18, title: 'Кулинарный мастер-класс по итальянской кухне', date: '26 сентября 2024', status: 'участвую' },
-    { id: 19, title: 'Концерт электронной музыки', date: '3 октября 2024', status: 'буду' },
-    { id: 20, title: 'Выставка абстрактного искусства', date: '10 октября 2024', status: 'участвую' },
-  ]);
+  // Мокап аватара по умолчанию
+  const defaultAvatars = [
+    'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
+    'https://api.dicebear.com/7.x/avataaars/svg?seed=Alexander',
+    'https://api.dicebear.com/7.x/avataaars/svg?seed=User123',
+    'https://api.dicebear.com/7.x/avataaars/svg?seed=Profile',
+  ];
 
   const [profile, setProfile] = useState<UserProfile>({
     id: 'user_123',
@@ -81,7 +104,7 @@ const ProfilePage: React.FC = () => {
     location: 'Москва, Россия',
     phone: '+7 (999) 123-45-67',
     website: 'https://alexivanov.me',
-    avatar: null,
+    avatar: defaultAvatars[0],
     joinedDate: '15 января 2023',
     eventsCount: 24,
     friendsCount: 156,
@@ -89,40 +112,270 @@ const ProfilePage: React.FC = () => {
     interests: ['Искусство', 'Музыка', 'Театр', 'Кино', 'Путешествия', 'Еда']
   });
 
-  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Имитация дисков и папок
+  const mockDiskFolders: DiskFolder[] = [
+    {
+      id: 'desktop',
+      name: 'Рабочий стол',
+      path: 'C:/Users/User/Desktop',
+      icon: <div className="folder-icon">🖥️</div>
+    },
+    {
+      id: 'pictures',
+      name: 'Изображения',
+      path: 'C:/Users/User/Pictures',
+      icon: <div className="folder-icon">🖼️</div>
+    },
+    {
+      id: 'downloads',
+      name: 'Загрузки',
+      path: 'C:/Users/User/Downloads',
+      icon: <div className="folder-icon">📥</div>
+    },
+    {
+      id: 'documents',
+      name: 'Документы',
+      path: 'C:/Users/User/Documents',
+      icon: <div className="folder-icon">📁</div>
+    },
+    {
+      id: 'drive_c',
+      name: 'Диск C',
+      path: 'C:/',
+      icon: <div className="folder-icon">💽</div>
+    },
+    {
+      id: 'drive_d',
+      name: 'Диск D',
+      path: 'D:/',
+      icon: <div className="folder-icon">💽</div>
+    }
+  ];
+
+  // Имитация изображений в папках
+  const mockImages: DiskImage[] = [
+    {
+      id: '1',
+      name: 'nature.jpg',
+      url: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80',
+      path: 'C:/Users/User/Pictures/nature.jpg'
+    },
+    {
+      id: '2',
+      name: 'portrait.png',
+      url: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80',
+      path: 'C:/Users/User/Pictures/portrait.png'
+    },
+    {
+      id: '3',
+      name: 'cityscape.webp',
+      url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80',
+      path: 'C:/Users/User/Pictures/cityscape.webp'
+    },
+    {
+      id: '4',
+      name: 'sunset.jpeg',
+      url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80',
+      path: 'C:/Users/User/Desktop/sunset.jpeg'
+    }
+  ];
+
+  // Валидация изображения
+  const validateImage = (file: File): boolean => {
+    setAvatarError(null);
+    
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Пожалуйста, выберите файл изображения (JPG, PNG, GIF)');
+      return false;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Размер файла не должен превышать 5MB');
+      return false;
+    }
+
+    const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!extension || !validExtensions.includes(extension)) {
+      setAvatarError('Допустимые форматы: JPG, PNG, GIF, WebP');
+      return false;
+    }
+
+    return true;
+  };
+
+  // Загрузка аватара с устройства
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      alert('Пожалуйста, выберите изображение');
+    setAvatarError(null);
+    setShowAvatarError(false);
+
+    if (!validateImage(file)) {
+      setShowAvatarError(true);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatarPreview(reader.result as string);
-      setIsEditing(true);
-    };
-    reader.readAsDataURL(file);
+    setIsUploading(true);
+    setShowUploadModal(true);
+    setUploadProgress(0);
+
+    try {
+      const interval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(interval);
+            return 95;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setUploadProgress(100);
+        
+        setTimeout(() => {
+          setAvatarPreview(result);
+          setProfile(prev => ({ ...prev, avatar: result }));
+          setIsUploading(false);
+          setShowUploadModal(false);
+          setShowAvatarMenu(false);
+          setIsEditing(true);
+          setUploadProgress(0);
+          
+          setTimeout(() => {
+            alert('✅ Аватар успешно загружен! Не забудьте сохранить изменения.');
+          }, 300);
+        }, 500);
+      };
+      reader.onerror = () => {
+        setAvatarError('Ошибка при чтении файла');
+        setShowAvatarError(true);
+        setIsUploading(false);
+        setShowUploadModal(false);
+        setUploadProgress(0);
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      setAvatarError('Ошибка при загрузке изображения');
+      setShowAvatarError(true);
+      setIsUploading(false);
+      setShowUploadModal(false);
+      setUploadProgress(0);
+    }
+
+    event.target.value = '';
   };
 
-  const handleSaveProfile = () => {
+  // Открытие файлового проводника
+  const openFileExplorer = () => {
+    setShowFileExplorer(true);
+    setDiskFolders(mockDiskFolders);
+    setDiskImages(mockImages);
+    setShowAvatarMenu(false);
+    setSelectedFolder(null);
+    setSelectedImage(null);
+    setSearchQuery('');
+  };
+
+  // Выбор папки
+  const selectFolder = (folderId: string) => {
+    setSelectedFolder(folderId);
+    const folder = mockDiskFolders.find(f => f.id === folderId);
+    const folderImages = mockImages.filter(img => 
+      img.path.toLowerCase().startsWith(folder?.path.toLowerCase() || '')
+    );
+    setDiskImages(folderImages);
+    setSelectedImage(null);
+  };
+
+  // Выбор изображения
+  const selectImage = (image: DiskImage) => {
+    setSelectedImage(image);
+  };
+
+  // Подтверждение выбора изображения
+  const confirmImageSelection = () => {
+    if (selectedImage) {
+      setAvatarPreview(selectedImage.url);
+      setProfile(prev => ({ ...prev, avatar: selectedImage.url }));
+      setIsEditing(true);
+      setShowFileExplorer(false);
+      setSelectedImage(null);
+      setSelectedFolder(null);
+      setShowPreview(true);
+    }
+  };
+
+  // Подтверждение аватара из предпросмотра
+  const confirmAvatarFromPreview = () => {
     if (avatarPreview) {
       setProfile(prev => ({ ...prev, avatar: avatarPreview }));
+      setShowPreview(false);
+      setIsEditing(true);
+      alert('✅ Аватар выбран из галереи! Не забудьте сохранить изменения.');
     }
-    setIsEditing(false);
-    // Здесь обычно отправляем данные на сервер
-    alert('Профиль сохранен!');
   };
 
+  // Выбор аватара из галереи готовых
+  const handleSelectAvatar = (avatarUrl: string) => {
+    setAvatarPreview(avatarUrl);
+    setProfile(prev => ({ ...prev, avatar: avatarUrl }));
+    setIsEditing(true);
+    setShowAvatarMenu(false);
+  };
+
+  // Удаление аватара
+  const handleRemoveAvatar = () => {
+    if (window.confirm('Вы уверены, что хотите удалить текущий аватар?')) {
+      setAvatarPreview(null);
+      setProfile(prev => ({ ...prev, avatar: defaultAvatars[0] }));
+      setIsEditing(true);
+      setShowAvatarMenu(false);
+      alert('✅ Аватар удален. Возвращен стандартный аватар.');
+    }
+  };
+
+  // Сохранение профиля
+  const handleSaveProfile = async () => {
+    setIsUploading(true);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      if (avatarPreview) {
+        setProfile(prev => ({ ...prev, avatar: avatarPreview }));
+      }
+      
+      setIsEditing(false);
+      setAvatarPreview(null);
+      alert('✅ Профиль успешно сохранен!');
+    } catch (error) {
+      alert('❌ Ошибка при сохранении профиля');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Отмена редактирования
   const handleCancelEdit = () => {
-    setAvatarPreview(null);
-    setIsEditing(false);
+    if (isEditing) {
+      if (window.confirm('Отменить все изменения?')) {
+        setAvatarPreview(null);
+        setIsEditing(false);
+        setAvatarError(null);
+        setShowAvatarError(false);
+      }
+    }
   };
 
   const handleLogout = () => {
     if (window.confirm('Вы уверены, что хотите выйти?')) {
-      // Очистка данных авторизации
       localStorage.removeItem('auth_token');
       navigate('/login');
     }
@@ -133,56 +386,355 @@ const ProfilePage: React.FC = () => {
     setIsEditing(true);
   };
 
-  const handleConfirmEvent = (eventId: number) => {
-    setEvents(prev => prev.map(event =>
-      event.id === eventId
-        ? { ...event, status: event.status === 'участвую' ? 'буду' : 'участвую' }
-        : event
-    ));
-  };
+  // Компонент аватара - Вариант 1: Стильный с hover-эффектами
+  const AvatarComponent = () => (
+    <div className="avatarContainer">
+      <div className="avatarWrapper">
+        {profile.avatar ? (
+          <img
+            src={avatarPreview || profile.avatar}
+            alt="Аватар"
+            className="avatarImage"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.fullName)}&background=random&size=150`;
+            }}
+          />
+        ) : (
+          <div className="avatarPlaceholder">
+            <User size={48} />
+          </div>
+        )}
 
-  const addInterest = (interest: string) => {
-    if (interest.trim() && !profile.interests.includes(interest)) {
-      setProfile(prev => ({
-        ...prev,
-        interests: [...prev.interests, interest.trim()]
-      }));
-      setIsEditing(true);
-    }
-  };
+        {isUploading && (
+          <div className="avatarOverlay loading">
+            <Loader size={24} className="spin" />
+            <span>Загрузка...</span>
+          </div>
+        )}
 
-  const removeInterest = (index: number) => {
-    setProfile(prev => ({
-      ...prev,
-      interests: prev.interests.filter((_, i) => i !== index)
-    }));
-    setIsEditing(true);
-  };
+        {/* Улучшенная кнопка изменения фото */}
+        <div className="avatarActionButtons">
+          {!isUploading && (
+            <>
+              <button
+                className="avatarChangeButton"
+                onClick={() => setShowAvatarMenu(!showAvatarMenu)}
+                title="Изменить фото"
+                onMouseEnter={() => setShowCameraTooltip(true)}
+                onMouseLeave={() => setShowCameraTooltip(false)}
+              >
+                <Camera size={20} />
+                <span>Изменить фото</span>
+              </button>
+              
+              {/* Быстрые действия */}
+              <div className="quickActions">
+                <button
+                  className="quickAction"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Загрузить фото"
+                >
+                  <Upload size={16} />
+                </button>
+                <button
+                  className="quickAction"
+                  onClick={openFileExplorer}
+                  title="Выбрать из галереи"
+                >
+                  <Folder size={16} />
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarUpload}
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                />
+              </div>
+            </>
+          )}
+        </div>
 
-  const mockEvents = [
+        {/* Тулкит камеры */}
+        {showCameraTooltip && !isUploading && (
+          <div className="cameraTooltip">
+            <Camera size={12} />
+            <span>Нажмите, чтобы изменить фото профиля</span>
+          </div>
+        )}
+      </div>
+
+      {/* Меню для аватара */}
+      {showAvatarMenu && !isUploading && (
+        <div className="avatarMenu">
+          <div className="avatarMenuHeader">
+            <div className="menuTitle">
+              <Camera size={20} />
+              <h4>Изменение фотографии профиля</h4>
+            </div>
+            <button 
+              className="avatarMenuClose"
+              onClick={() => setShowAvatarMenu(false)}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="avatarMenuOptions">
+            <div className="optionGroup">
+              <h5>Загрузить новое фото</h5>
+              <button
+                className="avatarMenuOption primary"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={18} />
+                <div className="optionContent">
+                  <span className="optionTitle">С компьютера</span>
+                  <span className="optionDescription">JPG, PNG, GIF, WebP до 5MB</span>
+                </div>
+                <ChevronRight size={16} />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarUpload}
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                />
+              </button>
+              
+              <button
+                className="avatarMenuOption primary"
+                onClick={openFileExplorer}
+              >
+                <Folder size={18} />
+                <div className="optionContent">
+                  <span className="optionTitle">Из галереи диска</span>
+                  <span className="optionDescription">Выбрать из папок на компьютере</span>
+                </div>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            <div className="optionGroup">
+              <h5>Готовые аватары</h5>
+              <div className="avatarGallery">
+                <div className="avatarGalleryGrid">
+                  {defaultAvatars.map((avatar, index) => (
+                    <button
+                      key={index}
+                      className="avatarGalleryItem"
+                      onClick={() => handleSelectAvatar(avatar)}
+                      title={`Аватар ${index + 1}`}
+                    >
+                      <img src={avatar} alt={`Аватар ${index + 1}`} />
+                      {profile.avatar === avatar && (
+                        <div className="avatarSelected">
+                          <Check size={14} />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {profile.avatar !== defaultAvatars[0] && (
+              <div className="optionGroup">
+                <button
+                  className="avatarMenuOption danger"
+                  onClick={handleRemoveAvatar}
+                >
+                  <Trash2 size={18} />
+                  <div className="optionContent">
+                    <span className="optionTitle">Удалить текущий аватар</span>
+                    <span className="optionDescription">Вернуться к стандартному аватару</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {showAvatarError && avatarError && (
+            <div className="avatarError">
+              <AlertCircle size={16} />
+              <span>{avatarError}</span>
+              <button 
+                className="avatarErrorClose"
+                onClick={() => setShowAvatarError(false)}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="avatarTips">
+        <p className="tip">
+          <Camera size={14} />
+          Наведите на фото, чтобы изменить его
+        </p>
+      </div>
+    </div>
+  );
+
+  // Компонент файлового проводника
+  const FileExplorerModal = () => (
+    <div className="fileExplorerModal">
+      <div className="fileExplorerContent">
+        <div className="fileExplorerHeader">
+          <h3>Выберите фото из галереи диска</h3>
+          <button 
+            className="avatarMenuClose"
+            onClick={() => setShowFileExplorer(false)}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="fileExplorerBody">
+          <div className="searchBox">
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Поиск по названию файла..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="fileExplorerFolders">
+            {mockDiskFolders.map(folder => (
+              <div
+                key={folder.id}
+                className={`folderItem ${selectedFolder === folder.id ? 'selected' : ''}`}
+                onClick={() => selectFolder(folder.id)}
+              >
+                {folder.icon}
+                <h4 className="folderName">{folder.name}</h4>
+                <p className="folderPath">{folder.path}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="fileExplorerImages">
+            <h4>Доступные изображения {selectedFolder ? `в ${mockDiskFolders.find(f => f.id === selectedFolder)?.name}` : ''}</h4>
+            <div className="imagesGrid">
+              {diskImages
+                .filter(img => 
+                  img.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  img.path.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map(image => (
+                  <div
+                    key={image.id}
+                    className={`imageItem ${selectedImage?.id === image.id ? 'selected' : ''}`}
+                    onClick={() => selectImage(image)}
+                  >
+                    <img src={image.url} alt={image.name} />
+                    <div className="imageOverlay">
+                      <Eye size={16} />
+                      <span className="imageName">{image.name}</span>
+                    </div>
+                    {selectedImage?.id === image.id && (
+                      <div className="imageSelectedBadge">
+                        <CheckCircle size={16} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="fileExplorerActions">
+          <button 
+            className="btn btn-outline"
+            onClick={() => setShowFileExplorer(false)}
+          >
+            Отмена
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={confirmImageSelection}
+            disabled={!selectedImage}
+          >
+            {selectedImage ? `Выбрать "${selectedImage.name}"` : 'Выберите изображение'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Компонент предпросмотра
+  const PreviewModal = () => (
+    <div className="previewModal">
+      <div className="previewContent">
+        <h3>Предпросмотр аватара</h3>
+        <img src={avatarPreview || ''} alt="Предпросмотр" className="previewImage" />
+        <div className="previewActions">
+          <button 
+            className="btn btn-outline"
+            onClick={() => setShowPreview(false)}
+          >
+            Отмена
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={confirmAvatarFromPreview}
+          >
+            Использовать это фото
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Компонент загрузки
+  const UploadModal = () => (
+    <div className="uploadModal">
+      <div className="uploadContent">
+        <Loader size={32} className="spin" />
+        <h4>Загрузка изображения</h4>
+        <div className="uploadProgress">
+          <div 
+            className="progressBar" 
+            style={{ width: `${uploadProgress}%` }}
+          />
+        </div>
+        <p className="uploadStatus">{uploadProgress}%</p>
+      </div>
+    </div>
+  );
+
+  // Мокап событий
+  const [events] = useState([
     { id: 1, title: 'Выставка современного искусства', date: '25 мая 2024', status: 'участвую' },
     { id: 2, title: 'Концерт классической музыки', date: '10 июня 2024', status: 'буду' },
-    { id: 3, title: 'Театральная премьера', date: '1 июня 2024', status: 'участвовал' },
-    { id: 4, title: 'Фестиваль уличной еды', date: '15 мая 2024', status: 'участвовал' },
-    { id: 5, title: 'Джазовый вечер в парке', date: '20 июня 2024', status: 'буду' },
-    { id: 6, title: 'Мастер-класс по фотографии', date: '5 июля 2024', status: 'участвую' },
-    { id: 7, title: 'Кинофестиваль под открытым небом', date: '12 июля 2024', status: 'буду' },
-    { id: 8, title: 'Выставка скульптур', date: '18 июля 2024', status: 'участвую' },
-    { id: 9, title: 'Концерт рок-группы', date: '25 июля 2024', status: 'буду' },
-    { id: 10, title: 'Театральный фестиваль', date: '1 августа 2024', status: 'участвовал' },
-    { id: 11, title: 'Фестиваль народной музыки', date: '8 августа 2024', status: 'участвую' },
-    { id: 12, title: 'Выставка цифрового искусства', date: '15 августа 2024', status: 'буду' },
-    { id: 13, title: 'Концерт симфонической музыки', date: '22 августа 2024', status: 'участвовал' },
-    { id: 14, title: 'Мастер-класс по живописи', date: '29 августа 2024', status: 'участвую' },
-    { id: 15, title: 'Фестиваль современного танца', date: '5 сентября 2024', status: 'буду' },
-  ];
+  ]);
 
   const mockBookmarks = [
     { id: 1, title: 'Выставка Ван Гога', category: 'Искусство' },
     { id: 2, title: 'Джазовый вечер', category: 'Музыка' },
-    { id: 3, title: 'Стендап-концерт', category: 'Юмор' },
-    { id: 4, title: 'Мастер-класс по живописи', category: 'Обучение' },
   ];
+
+  // Закрытие меню аватара при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.avatarContainer') && !target.closest('.avatarMenu')) {
+        setShowAvatarMenu(false);
+      }
+    };
+
+    if (showAvatarMenu) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showAvatarMenu]);
 
   return (
     <div className="container">
@@ -190,35 +742,7 @@ const ProfilePage: React.FC = () => {
       <aside className="sidebar">
         <div className="userCard">
           <div className="avatarSection">
-            <div className="avatarContainer">
-              {avatarPreview || profile.avatar ? (
-                <img
-                  src={avatarPreview || profile.avatar!}
-                  alt="Аватар"
-                  className="avatarImage"
-                />
-              ) : (
-                <div className="avatarPlaceholder">
-                  <User size={48} />
-                </div>
-              )}
-
-              <button
-                className="avatarButton"
-                onClick={() => fileInputRef.current?.click()}
-                title="Изменить фото"
-              >
-                <Camera size={18} />
-              </button>
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleAvatarUpload}
-                accept="image/*"
-                style={{ display: 'none' }}
-              />
-            </div>
+            <AvatarComponent />
           </div>
 
           <h2 className="userName">@{profile.username}</h2>
@@ -298,11 +822,28 @@ const ProfilePage: React.FC = () => {
             <div className="headerActions">
               {isEditing ? (
                 <>
-                  <button className="saveButton" onClick={handleSaveProfile}>
-                    <Save size={18} />
-                    Сохранить
+                  <button 
+                    className="saveButton" 
+                    onClick={handleSaveProfile}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader size={18} className="spin" />
+                        Сохранение...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={18} />
+                        Сохранить
+                      </>
+                    )}
                   </button>
-                  <button className="cancelButton" onClick={handleCancelEdit}>
+                  <button 
+                    className="cancelButton" 
+                    onClick={handleCancelEdit}
+                    disabled={isUploading}
+                  >
                     <X size={18} />
                     Отмена
                   </button>
@@ -338,6 +879,7 @@ const ProfilePage: React.FC = () => {
                         value={profile.username}
                         onChange={(e) => handleInputChange('username', e.target.value)}
                         className="input"
+                        disabled={isUploading}
                       />
                     ) : (
                       <p className="value">@{profile.username}</p>
@@ -355,6 +897,7 @@ const ProfilePage: React.FC = () => {
                         value={profile.fullName}
                         onChange={(e) => handleInputChange('fullName', e.target.value)}
                         className="input"
+                        disabled={isUploading}
                       />
                     ) : (
                       <p className="value">{profile.fullName}</p>
@@ -372,6 +915,7 @@ const ProfilePage: React.FC = () => {
                         value={profile.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         className="input"
+                        disabled={isUploading}
                       />
                     ) : (
                       <p className="value">{profile.email}</p>
@@ -389,6 +933,7 @@ const ProfilePage: React.FC = () => {
                         value={profile.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         className="input"
+                        disabled={isUploading}
                       />
                     ) : (
                       <p className="value">{profile.phone}</p>
@@ -407,6 +952,7 @@ const ProfilePage: React.FC = () => {
                         onChange={(e) => handleInputChange('location', e.target.value)}
                         className="input"
                         placeholder="Город, страна"
+                        disabled={isUploading}
                       />
                     ) : (
                       <p className="value">{profile.location}</p>
@@ -424,6 +970,7 @@ const ProfilePage: React.FC = () => {
                         value={profile.website}
                         onChange={(e) => handleInputChange('website', e.target.value)}
                         className="input"
+                        disabled={isUploading}
                       />
                     ) : (
                       <a
@@ -452,6 +999,7 @@ const ProfilePage: React.FC = () => {
                       className="textarea"
                       rows={3}
                       placeholder="Расскажите о себе..."
+                      disabled={isUploading}
                     />
                   ) : (
                     <p className="value">{profile.bio}</p>
@@ -468,10 +1016,15 @@ const ProfilePage: React.FC = () => {
                   {profile.interests.map((interest, index) => (
                     <div key={index} className="interest-tag">
                       {interest}
-                      {isEditing && (
+                      {isEditing && !isUploading && (
                         <button
                           className="interest-remove"
-                          onClick={() => removeInterest(index)}
+                          onClick={() => {
+                            const newInterests = [...profile.interests];
+                            newInterests.splice(index, 1);
+                            setProfile(prev => ({ ...prev, interests: newInterests }));
+                            setIsEditing(true);
+                          }}
                         >
                           <X size={14} />
                         </button>
@@ -479,12 +1032,22 @@ const ProfilePage: React.FC = () => {
                     </div>
                   ))}
 
-                  {isEditing && (
+                  {isEditing && !isUploading && (
                     <button
                       className="interest-add"
                       onClick={() => {
                         const newInterest = prompt('Добавить интерес:');
-                        if (newInterest) addInterest(newInterest);
+                        if (newInterest && newInterest.trim()) {
+                          if (!profile.interests.includes(newInterest.trim())) {
+                            setProfile(prev => ({
+                              ...prev,
+                              interests: [...prev.interests, newInterest.trim()]
+                            }));
+                            setIsEditing(true);
+                          } else {
+                            alert('Этот интерес уже добавлен');
+                          }
+                        }
                       }}
                     >
                       + Добавить
@@ -522,7 +1085,7 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div className="activityList">
-                {mockEvents.map(event => (
+                {events.map(event => (
                   <div key={event.id} className="activityItem">
                     <div className="activityIcon">
                       <Calendar size={20} />
@@ -604,7 +1167,8 @@ const ProfilePage: React.FC = () => {
                   <div className="activityIcon">
                     <Star size={24} />
                   </div>
-                  <div className="activityContent">
+                  <div className="
+                  ">
                     <h4>Оценки и отзывы</h4>
                     <p>Просмотр и управление вашими отзывами</p>
                     <button className="btn btn-outline">Перейти</button>
@@ -628,6 +1192,20 @@ const ProfilePage: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Модальные окна */}
+      {showFileExplorer && <FileExplorerModal />}
+      {showPreview && <PreviewModal />}
+      {showUploadModal && <UploadModal />}
+
+      {/* Плавающая кнопка для мобильных */}
+      <button 
+        className="floatingCameraButton"
+        onClick={() => setShowAvatarMenu(true)}
+        title="Изменить фото"
+      >
+        <Camera size={24} />
+      </button>
     </div>
   );
 };
