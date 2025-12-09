@@ -49,6 +49,29 @@ const ProfilePage: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'events' | 'bookmarks' | 'settings'>('profile');
 
+  const [events, setEvents] = useState([
+    { id: 1, title: 'Выставка современного искусства', date: '25 мая 2024', status: 'участвую' },
+    { id: 2, title: 'Концерт классической музыки', date: '10 июня 2024', status: 'буду' },
+    { id: 3, title: 'Театральная премьера', date: '1 июня 2024', status: 'участвовал' },
+    { id: 4, title: 'Фестиваль уличной еды', date: '15 мая 2024', status: 'участвовал' },
+    { id: 5, title: 'Джазовый вечер в парке', date: '20 июня 2024', status: 'буду' },
+    { id: 6, title: 'Мастер-класс по фотографии', date: '5 июля 2024', status: 'участвую' },
+    { id: 7, title: 'Кинофестиваль под открытым небом', date: '12 июля 2024', status: 'буду' },
+    { id: 8, title: 'Выставка скульптур', date: '18 июля 2024', status: 'участвую' },
+    { id: 9, title: 'Концерт рок-группы', date: '25 июля 2024', status: 'буду' },
+    { id: 10, title: 'Театральный фестиваль', date: '1 августа 2024', status: 'участвовал' },
+    { id: 11, title: 'Фестиваль народной музыки', date: '8 августа 2024', status: 'участвую' },
+    { id: 12, title: 'Выставка цифрового искусства', date: '15 августа 2024', status: 'буду' },
+    { id: 13, title: 'Концерт симфонической музыки', date: '22 августа 2024', status: 'участвовал' },
+    { id: 14, title: 'Мастер-класс по живописи', date: '29 августа 2024', status: 'участвую' },
+    { id: 15, title: 'Фестиваль современного танца', date: '5 сентября 2024', status: 'буду' },
+    { id: 16, title: 'Литературный вечер с авторами', date: '12 сентября 2024', status: 'участвую' },
+    { id: 17, title: 'Спортивный марафон по городу', date: '19 сентября 2024', status: 'буду' },
+    { id: 18, title: 'Кулинарный мастер-класс по итальянской кухне', date: '26 сентября 2024', status: 'участвую' },
+    { id: 19, title: 'Концерт электронной музыки', date: '3 октября 2024', status: 'буду' },
+    { id: 20, title: 'Выставка абстрактного искусства', date: '10 октября 2024', status: 'участвую' },
+  ]);
+
   const [profile, setProfile] = useState<UserProfile>({
     id: 'user_123',
     username: 'alexander_ivanov',
@@ -108,6 +131,14 @@ const ProfilePage: React.FC = () => {
   const handleInputChange = (field: keyof UserProfile, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
     setIsEditing(true);
+  };
+
+  const handleConfirmEvent = (eventId: number) => {
+    setEvents(prev => prev.map(event =>
+      event.id === eventId
+        ? { ...event, status: event.status === 'участвую' ? 'буду' : 'участвую' }
+        : event
+    ));
   };
 
   const addInterest = (interest: string) => {
@@ -225,7 +256,7 @@ const ProfilePage: React.FC = () => {
           >
             <Calendar size={20} />
             <span>Мои события</span>
-            <span className="badge">{mockEvents.length}</span>
+            <span className="badge">{events.length}</span>
           </button>
 
           <button
