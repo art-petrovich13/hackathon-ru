@@ -61,7 +61,7 @@ const mockEvents: Event[] = [
   {
     id: 2,
     name: 'Арт-фестиваль "Весна"',
-    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRJ8bSwghKgV1Qvg8FjyF8W0UPb7Il4lDbylA&s',
+    image: 'https://www.rewizor.ru/files/118344jxjj.jpg',
     startDate: '2024-04-20',
     endDate: '2024-04-22',
     participants: 85,
