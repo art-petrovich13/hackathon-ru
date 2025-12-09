@@ -1154,9 +1154,10 @@ $radius-2xl: 32px;
         }
       }
     }
+  }
+}
 
-    // Modal
-    .modal-overlay {
+.modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
@@ -1586,8 +1587,6 @@ $radius-2xl: 32px;
         }
       }
     }
-  }
-}
 
 // Responsive Design
 @media (max-width: 1200px) {

@@ -16,7 +16,7 @@ const WelcomePage: React.FC = () => {
   }, []);
 
   const handleNavigate = () => {
-    navigate('/events');
+    navigate('/authorization');
   };
 
   return (
