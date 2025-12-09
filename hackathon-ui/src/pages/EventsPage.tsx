@@ -145,6 +145,23 @@ const mockEvents: Event[] = [
     location: 'Москва, Digital October',
     organizer: 'AI Community',
     rating: 4.8
+  },
+  {
+    id: 7,
+    name: 'Отклоненное событие',
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    startDate: '2024-03-10',
+    endDate: '2024-03-12',
+    participants: 0,
+    maxParticipants: 50,
+    status: 'Отклоненное',
+    category: 'Тестирование',
+    description: 'Это событие отклонено и не должно отображаться на вкладках',
+    payment: 'Free',
+    userParticipating: false,
+    location: 'Тестовое место',
+    organizer: 'Тестовая организация',
+    rating: 0
   }
 ];
 
@@ -157,7 +174,7 @@ const navigationItems: NavItem[] = [
 ];
 
 const EventsPage = () => {
-  const [activeTab, setActiveTab] = useState('my');
+  const [activeTab, setActiveTab] = useState<string>('my'); // По умолчанию "Мои события"
   const [events, setEvents] = useState<Event[]>(mockEvents);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [showNotification, setShowNotification] = useState(false);
@@ -167,9 +184,11 @@ const EventsPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeNavItem, setActiveNavItem] = useState('events');
 
+  // Форматирование даты
   const formatDate = (start: string, end: string): string => {
     const startDate = new Date(start);
     const endDate = new Date(end);
+    
     if (start === end) {
       return startDate.toLocaleDateString('ru-RU', {
         day: 'numeric',
@@ -190,37 +209,56 @@ const EventsPage = () => {
     }
   };
 
-  // Auto-update event statuses
+  // Автоматическое обновление статусов событий
   useEffect(() => {
-    const now = new Date();
-    setEvents(prev => prev.map(event => {
-      const end = new Date(event.endDate);
-      const start = new Date(event.startDate);
-      
-      if (now > end && event.status === 'Активное') {
-        return { ...event, status: 'Прошедшее' };
-      } else if (now >= start && now <= end && event.status !== 'Прошедшее') {
-        return { ...event, status: 'Активное' };
-      }
-      return event;
-    }));
+    const updateEventStatuses = () => {
+      const now = new Date();
+      setEvents(prev => prev.map(event => {
+        const end = new Date(event.endDate);
+        const start = new Date(event.startDate);
+        
+        // Если событие отклонено, не меняем его статус
+        if (event.status === 'Отклоненное') return event;
+        
+        if (now > end && event.status !== 'Прошедшее') {
+          return { ...event, status: 'Прошедшее' };
+        } else if (now >= start && now <= end && event.status !== 'Активное') {
+          return { ...event, status: 'Активное' };
+        }
+        return event;
+      }));
+    };
+
+    updateEventStatuses();
+    const interval = setInterval(updateEventStatuses, 60000); // Обновлять каждую минуту
+    
+    return () => clearInterval(interval);
   }, []);
 
-  // Filter events based on active tab and search
+  // Фильтрация событий
   const filteredEvents = events.filter(event => {
-    // Hide rejected events from all tabs
-    if (event.status === 'Отклоненное') return false;
-    
-    // Search filter
-    if (searchQuery && 
-        !event.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !event.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !event.category.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !event.location.toLowerCase().includes(searchQuery.toLowerCase())) {
+    // Скрываем отклоненные события со всех вкладок (кроме админки)
+    if (event.status === 'Отклоненное' && activeNavItem !== 'administration') {
       return false;
     }
     
-    // Tab filters
+    // Поиск по всем полям
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase();
+      const searchableFields = [
+        event.name.toLowerCase(),
+        event.description.toLowerCase(),
+        event.category.toLowerCase(),
+        event.location.toLowerCase(),
+        event.organizer.toLowerCase()
+      ];
+      
+      if (!searchableFields.some(field => field.includes(query))) {
+        return false;
+      }
+    }
+    
+    // Фильтрация по вкладкам
     switch (activeTab) {
       case 'active':
         return event.status === 'Активное';
@@ -233,27 +271,35 @@ const EventsPage = () => {
     }
   });
 
-  // Show notification
+  // Показать уведомление
   const showAlert = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setNotificationMessage(message);
+    setNotificationMessage(`${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'} ${message}`);
     setShowNotification(true);
     setTimeout(() => setShowNotification(false), 3000);
   };
 
-  // Handle participation
+  // Подтверждение участия
   const handleParticipate = async (eventId: number) => {
     setIsLoading(true);
     try {
-      // Simulate API call
+      // Имитация API запроса
       await new Promise(resolve => setTimeout(resolve, 500));
       
       setEvents(prev => prev.map(event => {
         if (event.id === eventId) {
+          // Проверка лимита участников
           if (event.maxParticipants && event.participants >= event.maxParticipants) {
-            showAlert('🚫 Достигнут максимальный лимит участников', 'error');
+            showAlert('Достигнут максимальный лимит участников', 'error');
             return event;
           }
-          showAlert('🎉 Вы успешно присоединились к событию! Уведомление отправлено организатору.', 'success');
+          
+          // Проверка статуса события
+          if (event.status !== 'Активное') {
+            showAlert('Нельзя присоединиться к неактивному событию', 'error');
+            return event;
+          }
+          
+          showAlert('Вы успешно присоединились к событию! Уведомление отправлено организатору.', 'success');
           return { 
             ...event, 
             userParticipating: true, 
@@ -262,37 +308,58 @@ const EventsPage = () => {
         }
         return event;
       }));
+      
+      // Закрываем модальное окно, если оно открыто
+      if (selectedEvent?.id === eventId) {
+        setSelectedEvent(prev => prev ? {...prev, userParticipating: true, participants: prev.participants + 1} : null);
+      }
     } catch (error) {
-      showAlert('❌ Произошла ошибка при подтверждении участия', 'error');
+      showAlert('Произошла ошибка при подтверждении участия', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle cancel participation
-  const handleCancelParticipation = (eventId: number) => {
+  // Отмена участия
+  const handleCancelParticipation = async (eventId: number) => {
     if (window.confirm('Вы уверены, что хотите отменить участие в этом событии?')) {
-      setEvents(prev => prev.map(event => {
-        if (event.id === eventId) {
-          showAlert('✅ Участие отменено. Уведомление отправлено организатору.', 'success');
-          return { 
-            ...event, 
-            userParticipating: false, 
-            participants: event.participants - 1 
-          };
+      setIsLoading(true);
+      try {
+        // Имитация API запроса
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setEvents(prev => prev.map(event => {
+          if (event.id === eventId) {
+            showAlert('Участие отменено. Уведомление отправлено организатору.', 'success');
+            return { 
+              ...event, 
+              userParticipating: false, 
+              participants: Math.max(0, event.participants - 1)
+            };
+          }
+          return event;
+        }));
+        
+        // Обновляем модальное окно, если оно открыто
+        if (selectedEvent?.id === eventId) {
+          setSelectedEvent(prev => prev ? {...prev, userParticipating: false, participants: Math.max(0, prev.participants - 1)} : null);
         }
-        return event;
-      }));
+      } catch (error) {
+        showAlert('Произошла ошибка при отмене участия', 'error');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  // Handle share
+  // Поделиться событием
   const handleShare = (event: Event) => {
-    navigator.clipboard.writeText(`${event.name} - Подробнее на EventFlow`);
-    showAlert('🔗 Ссылка скопирована в буфер обмена', 'info');
+    const shareText = `${event.name}\nДата: ${formatDate(event.startDate, event.endDate)}\nМесто: ${event.location}`;
+    navigator.clipboard.writeText(shareText);
+    showAlert('Ссылка скопирована в буфер обмена', 'info');
   };
 
-  // Get status color
+  // Получить цвет статуса
   const getStatusColor = (status: Event['status']): string => {
     switch (status) {
       case 'Активное': return '#10b981';
@@ -302,20 +369,20 @@ const EventsPage = () => {
     }
   };
 
-  // Get payment color
+  // Получить цвет оплаты
   const getPaymentColor = (payment: Event['payment']): string => {
     return payment === 'Free' ? '#10b981' : '#f59e0b';
   };
 
-  // Get progress color
+  // Получить цвет прогресса
   const getProgressColor = (progress: number): string => {
     if (progress >= 90) return '#ef4444';
     if (progress >= 70) return '#f59e0b';
     return '#10b981';
   };
 
-  // Get empty state message
-  const getEmptyStateMessage = (): { title: string; description: string } => {
+  // Сообщение при пустом списке
+  const getEmptyStateMessage = () => {
     switch (activeTab) {
       case 'active':
         return { 
@@ -340,40 +407,50 @@ const EventsPage = () => {
     }
   };
 
-  // Get event tooltip content
+  // Контент всплывающей подсказки для события
   const getEventTooltip = (event: Event): string => {
     return `
 Название: ${event.name}
 Дата: ${formatDate(event.startDate, event.endDate)}
 Место: ${event.location}
+Статус: ${event.status}
 Оплата: ${event.payment === 'Free' ? 'Бесплатно' : `Платно (${event.price || 'цена не указана'})`}
-Описание: ${event.description}
+Участники: ${event.participants}/${event.maxParticipants}
+Категория: ${event.category}
+Рейтинг: ${event.rating}/5.0
+Описание: ${event.description.substring(0, 100)}...
     `.trim();
   };
 
   return (
     <div className="events-page">
-      {/* Notification */}
+      {/* Уведомления */}
       {showNotification && (
         <div className="notification">
-          <CheckCircle size={20} />
-          <span>{notificationMessage}</span>
-          <button onClick={() => setShowNotification(false)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner">
-            <Loader size={32} className="spin" />
+          <div className="notification-content">
+            <span>{notificationMessage}</span>
+            <button 
+              onClick={() => setShowNotification(false)}
+              className="notification-close"
+              aria-label="Закрыть уведомление"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
       )}
 
-      {/* Mobile Header */}
+      {/* Загрузка */}
+      {isLoading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner">
+            <Loader size={32} className="spin" />
+            <span>Загрузка...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Мобильный заголовок */}
       <div className="mobile-header">
         <button 
           className="mobile-menu-btn" 
@@ -396,7 +473,7 @@ const EventsPage = () => {
         </div>
       </div>
 
-      {/* Navigation Panel */}
+      {/* Панель навигации */}
       <nav className={`nav-panel ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="nav-header">
           <div className="logo">
@@ -410,7 +487,7 @@ const EventsPage = () => {
             </div>
             <div className="user-details">
               <div className="user-name">Алексей Петров</div>
-              <div className="user-role">Premium участник</div>
+              <div className="user-role">Участник</div>
             </div>
             <button className="settings-btn" aria-label="Настройки">
               <Settings size={18} />
@@ -430,7 +507,7 @@ const EventsPage = () => {
         </div>
 
         <div className="nav-items">
-          {/* Main Navigation */}
+          {/* Основная навигация */}
           <div className="nav-section">
             <div className="section-title">Навигация</div>
             {navigationItems.map((item) => (
@@ -442,6 +519,9 @@ const EventsPage = () => {
                   setMobileMenuOpen(false);
                 }}
                 title={item.name}
+                role="button"
+                tabIndex={0}
+                onKeyPress={(e) => e.key === 'Enter' && setActiveNavItem(item.id)}
               >
                 <div className="nav-icon">
                   {item.icon}
@@ -454,47 +534,59 @@ const EventsPage = () => {
             ))}
           </div>
 
-          {/* Event Filters */}
+          {/* Фильтры событий */}
           <div className="nav-section">
             <div className="section-title">События</div>
             <div 
               className={`nav-item ${activeTab === 'my' ? 'active' : ''}`} 
               onClick={() => { setActiveTab('my'); setMobileMenuOpen(false); }}
               title="Мои события"
+              role="button"
+              tabIndex={0}
             >
               <div className="nav-icon">
                 <Heart size={20} />
               </div>
               <div className="nav-text">Мои события</div>
-              <div className="nav-badge">{events.filter(e => e.userParticipating).length}</div>
+              <div className="nav-badge">
+                {events.filter(e => e.userParticipating && e.status !== 'Отклоненное').length}
+              </div>
             </div>
             
             <div 
               className={`nav-item ${activeTab === 'active' ? 'active' : ''}`} 
               onClick={() => { setActiveTab('active'); setMobileMenuOpen(false); }}
               title="Активные события"
+              role="button"
+              tabIndex={0}
             >
               <div className="nav-icon">
                 <Calendar size={20} />
               </div>
               <div className="nav-text">Активные</div>
-              <div className="nav-badge">{events.filter(e => e.status === 'Активное').length}</div>
+              <div className="nav-badge">
+                {events.filter(e => e.status === 'Активное').length}
+              </div>
             </div>
             
             <div 
               className={`nav-item ${activeTab === 'past' ? 'active' : ''}`} 
               onClick={() => { setActiveTab('past'); setMobileMenuOpen(false); }}
               title="Прошедшие события"
+              role="button"
+              tabIndex={0}
             >
               <div className="nav-icon">
                 <Award size={20} />
               </div>
               <div className="nav-text">Прошедшие</div>
-              <div className="nav-badge">{events.filter(e => e.status === 'Прошедшее').length}</div>
+              <div className="nav-badge">
+                {events.filter(e => e.status === 'Прошедшее').length}
+              </div>
             </div>
           </div>
 
-          {/* Categories */}
+          {/* Категории */}
           <div className="nav-section">
             <div className="section-title">Категории</div>
             <div className="category-tags">
@@ -515,7 +607,7 @@ const EventsPage = () => {
         <div className="nav-footer">
           <div className="stats">
             <div className="stat-item" title="Количество ваших событий">
-              <div className="stat-value">{events.filter(e => e.userParticipating).length}</div>
+              <div className="stat-value">{events.filter(e => e.userParticipating && e.status !== 'Отклоненное').length}</div>
               <div className="stat-label">Мои события</div>
             </div>
             <div className="stat-item" title="Активных событий">
@@ -523,7 +615,7 @@ const EventsPage = () => {
               <div className="stat-label">Активных</div>
             </div>
             <div className="stat-item" title="Всего участников">
-              <div className="stat-value">{events.reduce((sum, e) => sum + e.participants, 0)}</div>
+              <div className="stat-value">{events.filter(e => e.status !== 'Отклоненное').reduce((sum, e) => sum + e.participants, 0)}</div>
               <div className="stat-label">Участников</div>
             </div>
           </div>
@@ -534,12 +626,12 @@ const EventsPage = () => {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
+      {/* Мобильное меню */}
       {mobileMenuOpen && (
         <div className="mobile-overlay" onClick={() => setMobileMenuOpen(false)} />
       )}
 
-      {/* Main Content */}
+      {/* Основной контент */}
       <div className="content">
         <div className="content-wrapper">
           <div className="content-header">
@@ -570,7 +662,7 @@ const EventsPage = () => {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Вкладки */}
           <div className="tabs">
             <button 
               className={`tab ${activeTab === 'my' ? 'active' : ''}`} 
@@ -581,7 +673,9 @@ const EventsPage = () => {
                 <Heart size={20} />
                 <span>Мои события</span>
               </div>
-              <div className="tab-badge">{events.filter(e => e.userParticipating).length}</div>
+              <div className="tab-badge">
+                {events.filter(e => e.userParticipating && e.status !== 'Отклоненное').length}
+              </div>
             </button>
             
             <button 
@@ -593,7 +687,9 @@ const EventsPage = () => {
                 <Calendar size={20} />
                 <span>Активные события</span>
               </div>
-              <div className="tab-badge">{events.filter(e => e.status === 'Активное').length}</div>
+              <div className="tab-badge">
+                {events.filter(e => e.status === 'Активное').length}
+              </div>
             </button>
             
             <button 
@@ -605,11 +701,13 @@ const EventsPage = () => {
                 <TrendingUp size={20} />
                 <span>Прошедшие события</span>
               </div>
-              <div className="tab-badge">{events.filter(e => e.status === 'Прошедшее').length}</div>
+              <div className="tab-badge">
+                {events.filter(e => e.status === 'Прошедшее').length}
+              </div>
             </button>
           </div>
 
-          {/* Stats Cards */}
+          {/* Статистика */}
           <div className="stats-cards">
             <div className="stat-card" title="Активные события">
               <div className="stat-card-icon" style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
@@ -625,7 +723,9 @@ const EventsPage = () => {
                 <Users size={24} />
               </div>
               <div className="stat-card-content">
-                <div className="stat-card-value">{events.reduce((sum, e) => sum + e.participants, 0)}</div>
+                <div className="stat-card-value">
+                  {events.filter(e => e.status !== 'Отклоненное').reduce((sum, e) => sum + e.participants, 0)}
+                </div>
                 <div className="stat-card-label">Всего участников</div>
               </div>
             </div>
@@ -635,14 +735,15 @@ const EventsPage = () => {
               </div>
               <div className="stat-card-content">
                 <div className="stat-card-value">
-                  {Math.round(events.reduce((sum, e) => sum + e.rating, 0) / events.length * 10) / 10}
+                  {Math.round(events.filter(e => e.status !== 'Отклоненное').reduce((sum, e) => sum + e.rating, 0) / 
+                    events.filter(e => e.status !== 'Отклоненное').length * 10) / 10 || 0}
                 </div>
                 <div className="stat-card-label">Средний рейтинг</div>
               </div>
             </div>
           </div>
 
-          {/* Event List */}
+          {/* Список событий */}
           <div className="event-list">
             {filteredEvents.length === 0 ? (
               <div className="empty-state">
@@ -665,7 +766,7 @@ const EventsPage = () => {
                 </div>
                 <div className="events-grid">
                   {filteredEvents.map(event => {
-                    const progress = (event.participants / event.maxParticipants) * 100;
+                    const progress = event.maxParticipants ? (event.participants / event.maxParticipants) * 100 : 0;
                     const progressColor = getProgressColor(progress);
                     
                     return (
@@ -674,6 +775,9 @@ const EventsPage = () => {
                         className="event-card"
                         onClick={() => setSelectedEvent(event)}
                         title={getEventTooltip(event)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyPress={(e) => e.key === 'Enter' && setSelectedEvent(event)}
                       >
                         <div className="event-image">
                           <img src={event.image} alt={event.name} loading="lazy" />
@@ -739,45 +843,60 @@ const EventsPage = () => {
                             </div>
                           </div>
                           
-                          {event.status === 'Активное' && (
+                          <div className="event-actions">
+                            {event.status === 'Активное' && (
+                              <button 
+                                className={event.userParticipating ? 'btn-participating' : 'btn-join'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (event.userParticipating) {
+                                    handleCancelParticipation(event.id);
+                                  } else {
+                                    handleParticipate(event.id);
+                                  }
+                                }}
+                                disabled={(!event.userParticipating && event.participants >= event.maxParticipants) || isLoading}
+                                title={!event.userParticipating && event.participants >= event.maxParticipants ? 'Достигнут лимит участников' : ''}
+                              >
+                                {isLoading ? (
+                                  <Loader size={14} className="spin" />
+                                ) : event.userParticipating ? (
+                                  <>
+                                    <CheckCircle size={16} />
+                                    <span>Вы участвуете</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus size={16} />
+                                    <span>
+                                      {event.participants >= event.maxParticipants 
+                                        ? 'Мест нет' 
+                                        : 'Присоединиться'
+                                      }
+                                    </span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            
+                            {event.status === 'Прошедшее' && event.userParticipating && (
+                              <button className="btn-participating" disabled>
+                                <CheckCircle size={16} />
+                                <span>Вы участвовали</span>
+                              </button>
+                            )}
+                            
                             <button 
-                              className={event.userParticipating ? 'btn-participating' : 'btn-join'}
+                              className="btn-share"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (event.userParticipating) {
-                                  handleCancelParticipation(event.id);
-                                } else {
-                                  handleParticipate(event.id);
-                                }
+                                handleShare(event);
                               }}
-                              disabled={!event.userParticipating && event.participants >= event.maxParticipants}
-                              title={!event.userParticipating && event.participants >= event.maxParticipants ? 'Достигнут лимит участников' : ''}
+                              title="Поделиться событием"
                             >
-                              {event.userParticipating ? (
-                                <>
-                                  <CheckCircle size={16} />
-                                  <span>Вы участвуете</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Plus size={16} />
-                                  <span>
-                                    {event.participants >= event.maxParticipants 
-                                      ? 'Мест нет' 
-                                      : 'Присоединиться'
-                                    }
-                                  </span>
-                                </>
-                              )}
+                              <Share2 size={16} />
                             </button>
-                          )}
-                          
-                          {event.status === 'Прошедшее' && event.userParticipating && (
-                            <button className="btn-participating" disabled>
-                              <CheckCircle size={16} />
-                              <span>Вы участвовали</span>
-                            </button>
-                          )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -789,11 +908,16 @@ const EventsPage = () => {
         </div>
       </div>
 
-      {/* Event Details Modal */}
+      {/* Модальное окно события */}
       {selectedEvent && (
         <div className="modal-overlay" onClick={() => setSelectedEvent(null)}>
           <div className="event-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setSelectedEvent(null)} title="Закрыть">
+            <button 
+              className="modal-close" 
+              onClick={() => setSelectedEvent(null)}
+              title="Закрыть"
+              aria-label="Закрыть"
+            >
               <X size={20} />
             </button>
             
@@ -930,7 +1054,7 @@ const EventsPage = () => {
                               className="btn-primary"
                               onClick={() => handleParticipate(selectedEvent.id)}
                               disabled={selectedEvent.participants >= selectedEvent.maxParticipants || isLoading}
-                              title={selectedEvent.participants >= selectedEvent.maxParticipants ? 'Достигнут лимит участников' : ''}
+                              title={selectedEvent.participants >= selectedEvent.maxParticipants ? 'Достигнут лимит участников' : 'Подтвердить участие'}
                             >
                               {isLoading ? (
                                 <>
@@ -948,6 +1072,7 @@ const EventsPage = () => {
                               className="btn-secondary"
                               onClick={() => handleCancelParticipation(selectedEvent.id)}
                               disabled={isLoading}
+                              title="Отменить участие"
                             >
                               {isLoading ? (
                                 <>
