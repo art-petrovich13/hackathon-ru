@@ -331,3 +331,65 @@
   margin-bottom: 16px;
   text-align: center;
 }
+// ... существующие стили ...
+
+.forgotPassword {
+  text-align: right;
+  margin-top: -0.5rem;
+}
+
+.forgotPasswordLink {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #764ba2;
+    text-decoration: underline;
+  }
+}
+
+.resendCode {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.resendButton {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    color: #a0aec0;
+    cursor: not-allowed;
+  }
+}
+
+.backToLogin {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #718096;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.2s;
+
+  &:hover {
+    color: #667eea;
+  }
+}
