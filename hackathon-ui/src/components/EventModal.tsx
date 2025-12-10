@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MapPin, Calendar, Clock, Users, Star, CheckCircle, AlertCircle, Share2, Loader } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Users, CheckCircle, AlertCircle, Share2, Loader } from 'lucide-react';
 
 interface EventModalProps {
   event: {
@@ -73,6 +73,22 @@ export default function EventModal({
     }
   };
 
+  const formatTime = (start: string, end: string): string => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    
+    const startTime = startDate.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const endTime = endDate.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    return `${startTime} - ${endTime}`;
+  };
+
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'active': return '#10b981';
@@ -90,6 +106,9 @@ export default function EventModal({
 
   const progress = event.max_participants ? 
     (event.participants_count / event.max_participants) * 100 : 0;
+
+  const canParticipate = event.is_active && !event.is_past && !event.is_full && !event.is_participating;
+  const canCancel = event.is_participating && !event.is_past;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -162,7 +181,7 @@ export default function EventModal({
                   <Clock size={20} />
                   <div>
                     <label>Время</label>
-                    <p>10:00 - 18:00</p>
+                    <p>{formatTime(event.start_date, event.end_date)}</p>
                   </div>
                 </div>
                 
@@ -234,46 +253,63 @@ export default function EventModal({
                 </div>
                 
                 <div className="action-buttons">
-                  {event.is_active && !event.is_past && (
-                    <>
-                      {!event.is_participating ? (
-                        <button 
-                          className="btn-primary"
-                          onClick={() => onParticipate(event.id)}
-                          disabled={event.is_full || isLoading}
-                          title={event.is_full ? 'Достигнут лимит участников' : 'Подтвердить участие'}
-                        >
-                          {isLoading ? (
-                            <>
-                              <Loader size={18} className="spin" />
-                              <span>Обработка...</span>
-                            </>
-                          ) : event.is_full ? (
-                            'Мест нет'
-                          ) : (
-                            'Подтвердить участие'
-                          )}
-                        </button>
+                  {/* Кнопка записи/отмены участия */}
+                  {!event.is_participating ? (
+                    <button 
+                      className="btn-primary"
+                      onClick={() => onParticipate(event.id)}
+                      disabled={isLoading || event.is_past || event.is_full || !event.is_active}
+                      title={
+                        event.is_past ? 'Событие уже прошло' : 
+                        event.is_full ? 'Достигнут лимит участников' : 
+                        !event.is_active ? 'Событие не активно' : 
+                        'Записаться на мероприятие'
+                      }
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader size={18} className="spin" />
+                          <span>Обработка...</span>
+                        </>
+                      ) : event.is_full ? (
+                        'Мест нет'
+                      ) : event.is_past ? (
+                        'Событие прошло'
+                      ) : !event.is_active ? (
+                        'Не активно'
                       ) : (
-                        <button 
-                          className="btn-secondary"
-                          onClick={() => onCancelParticipation(event.id)}
-                          disabled={isLoading}
-                          title="Отменить участие"
-                        >
-                          {isLoading ? (
-                            <>
-                              <Loader size={18} className="spin" />
-                              <span>Обработка...</span>
-                            </>
-                          ) : (
-                            'Отменить участие'
-                          )}
-                        </button>
+                        'Записаться на мероприятие'
                       )}
-                    </>
+                    </button>
+                  ) : (
+                    <button 
+                      className="btn-secondary"
+                      onClick={() => onCancelParticipation(event.id)}
+                      disabled={isLoading || event.is_past}
+                      title={event.is_past ? 'Нельзя отменить участие в прошедшем событии' : 'Отменить запись'}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader size={18} className="spin" />
+                          <span>Обработка...</span>
+                        </>
+                      ) : (
+                        'Отменить запись'
+                      )}
+                    </button>
                   )}
                   
+                  {/* Кнопка поделиться */}
+                  <button 
+                    className="btn-outline"
+                    onClick={() => onShare(event)}
+                    title="Поделиться событием"
+                  >
+                    <Share2 size={18} />
+                    Поделиться
+                  </button>
+                  
+                  {/* Кнопка редактирования для админа */}
                   {isAdmin && onEdit && (
                     <button 
                       className="btn-secondary"
@@ -283,15 +319,6 @@ export default function EventModal({
                       Редактировать
                     </button>
                   )}
-                  
-                  <button 
-                    className="btn-outline"
-                    onClick={() => onShare(event)}
-                    title="Поделиться событием"
-                  >
-                    <Share2 size={18} />
-                    Поделиться
-                  </button>
                 </div>
               </div>
             </div>
