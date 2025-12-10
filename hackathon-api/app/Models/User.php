@@ -50,6 +50,16 @@ class User extends Authenticatable
     {
         return $query->where('status', 'active');
     }
+    
+    public function scopeDeleted($query)
+    {
+        return $query->where('status', 'deleted');
+    }
+    
+    public function scopeByRole($query, $role)
+    {
+        return $query->where('role', $role);
+    }
 
     public function isAdmin()
     {

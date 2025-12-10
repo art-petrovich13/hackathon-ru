@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\AdminController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,4 +39,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/events/{id}', [EventController::class, 'show']);
     Route::post('/events/{id}/participate', [EventController::class, 'participate']);
     Route::post('/events/{id}/cancel', [EventController::class, 'cancel']);
+});
+
+// Админ-маршруты
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // Пользователи
+    Route::get('/users', [AdminController::class, 'getUsers']);
+    Route::get('/users/{id}', [AdminController::class, 'getUser']);
+    Route::put('/users/{id}', [AdminController::class, 'updateUser']);
+    Route::post('/users/{id}/reset-password', [AdminController::class, 'resetPassword']);
+    Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+    
+    // События
+    Route::get('/events', [AdminController::class, 'getAllEvents']);
+    Route::post('/events', [AdminController::class, 'createEvent']);
+    Route::get('/events/{id}', [AdminController::class, 'getEvent']);
+    Route::put('/events/{id}', [AdminController::class, 'updateEvent']);
+    Route::delete('/events/{id}', [AdminController::class, 'deleteEvent']);
+    Route::get('/events/{id}/export', [AdminController::class, 'exportParticipants']);
 });

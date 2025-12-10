@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import EventsPage from '../pages/Event/EventsPage.jsx';
 import WelcomePage from '../pages/WelcomePage/WelcomePage.tsx';
 import Profile from '../pages/Profile/Profile';
-import Admin from '../pages/AdminPage/AdminPage.tsx';
+import AdminPage from '../pages/AdminPage/index.tsx';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 import Login from '../pages/Authorization/components/Login/Login';
@@ -28,12 +28,14 @@ export default function AppRoutes() {
           <Profile />
 
         } />
-        <Route
-        path="/admin"
-        element={
-          <Admin />
-
-        } />
+      <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminPage />
+            </ProtectedRoute>
+          } 
+        />
 
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
