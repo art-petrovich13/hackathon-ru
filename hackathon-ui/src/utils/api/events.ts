@@ -70,20 +70,19 @@ async function apiRequest<T = any>(
 
     try {
         const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-
-        // Если 401 Unauthorized - удаляем токен и редиректим на логин
-        if (response.status === 401) {
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-            throw new Error('Требуется авторизация');
-        }
-
         const data = await response.json();
-
+        
+        // Логирование для отладки
+        console.log(`API ${endpoint}:`, {
+            status: response.status,
+            ok: response.ok,
+            data: data
+        });
+        
         if (!response.ok) {
-            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+            throw new Error(data.error || data.message || `HTTP error! status: ${response.status}`);
         }
-
+        
         return data;
     } catch (error) {
         console.error('API Request error:', error);

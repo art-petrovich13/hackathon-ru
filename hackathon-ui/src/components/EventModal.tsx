@@ -48,11 +48,11 @@ export default function EventModal({
   isAdmin = false,
   onEdit,
 }: EventModalProps) {
-  
+
   const formatDate = (start: string, end: string): string => {
     const startDate = new Date(start);
     const endDate = new Date(end);
-    
+
     if (start === end) {
       return startDate.toLocaleDateString('ru-RU', {
         day: 'numeric',
@@ -76,7 +76,7 @@ export default function EventModal({
   const formatTime = (start: string, end: string): string => {
     const startDate = new Date(start);
     const endDate = new Date(end);
-    
+
     const startTime = startDate.toLocaleTimeString('ru-RU', {
       hour: '2-digit',
       minute: '2-digit'
@@ -85,7 +85,7 @@ export default function EventModal({
       hour: '2-digit',
       minute: '2-digit'
     });
-    
+
     return `${startTime} - ${endTime}`;
   };
 
@@ -104,39 +104,39 @@ export default function EventModal({
     return '#10b981';
   };
 
-  const progress = event.max_participants ? 
+  const progress = event.max_participants ?
     (event.participants_count / event.max_participants) * 100 : 0;
 
-  const canParticipate = event.is_active && !event.is_past && !event.is_full && !event.is_participating;
-  const canCancel = event.is_participating && !event.is_past;
+  const isEventActive = event.status === 'active' && !event.is_past;
+  const canParticipate = isEventActive && !event.is_full && !event.is_participating;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="event-modal" onClick={(e) => e.stopPropagation()}>
-        <button 
-          className="modal-close" 
+        <button
+          className="modal-close"
           onClick={onClose}
           title="Закрыть"
           aria-label="Закрыть"
         >
           <X size={20} />
         </button>
-        
+
         <div className="modal-content">
           <div className="modal-image">
             <img src={event.image || 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'} alt={event.title} />
             <div className="modal-image-overlay">
               <div className="modal-badges">
-                <div 
-                  className="status-badge" 
+                <div
+                  className="status-badge"
                   style={{ backgroundColor: getStatusColor(event.status) }}
                 >
-                  {event.status === 'active' ? 'Активное' : 
-                   event.status === 'past' ? 'Прошедшее' : 
-                   event.status === 'rejected' ? 'Отклоненное' : event.status}
+                  {event.status === 'active' ? 'Активное' :
+                    event.status === 'past' ? 'Прошедшее' :
+                      event.status === 'rejected' ? 'Отклоненное' : event.status}
                 </div>
-                <div 
-                  className="payment-badge" 
+                <div
+                  className="payment-badge"
                   style={{ backgroundColor: event.payment_type === 'free' ? '#10b981' : '#f59e0b' }}
                 >
                   {event.payment_type === 'free' ? 'Бесплатно' : `Платно ${event.price ? `(${event.price} руб.)` : ''}`}
@@ -150,7 +150,7 @@ export default function EventModal({
               </div>
             </div>
           </div>
-          
+
           <div className="modal-body">
             <div className="modal-header">
               <h2>{event.title}</h2>
@@ -158,7 +158,7 @@ export default function EventModal({
                 {event.payment_type === 'free' ? 'Бесплатное' : 'Платное'}
               </div>
             </div>
-            
+
             <div className="modal-info">
               <div className="info-grid">
                 <div className="info-item">
@@ -168,7 +168,7 @@ export default function EventModal({
                     <p>{event.location}</p>
                   </div>
                 </div>
-                
+
                 <div className="info-item">
                   <Calendar size={20} />
                   <div>
@@ -176,7 +176,7 @@ export default function EventModal({
                     <p>{formatDate(event.start_date, event.end_date)}</p>
                   </div>
                 </div>
-                
+
                 <div className="info-item">
                   <Clock size={20} />
                   <div>
@@ -184,7 +184,7 @@ export default function EventModal({
                     <p>{formatTime(event.start_date, event.end_date)}</p>
                   </div>
                 </div>
-                
+
                 <div className="info-item">
                   <Users size={20} />
                   <div>
@@ -199,9 +199,9 @@ export default function EventModal({
                     </div>
                     {event.max_participants && (
                       <div className="progress-bar">
-                        <div 
-                          className="progress-fill" 
-                          style={{ 
+                        <div
+                          className="progress-fill"
+                          style={{
                             width: `${progress}%`,
                             backgroundColor: getProgressColor(progress)
                           }}
@@ -211,19 +211,19 @@ export default function EventModal({
                   </div>
                 </div>
               </div>
-              
+
               <div className="modal-description">
                 <h3>Описание события</h3>
                 <p>{event.description}</p>
               </div>
-              
+
               {event.payment_details && (
                 <div className="payment-info">
                   <h3>Информация об оплате</h3>
                   <p>{typeof event.payment_details === 'string' ? event.payment_details : JSON.stringify(event.payment_details)}</p>
                 </div>
               )}
-              
+
               <div className="modal-organizer">
                 <h3>Организатор</h3>
                 <div className="organizer-info">
@@ -236,7 +236,7 @@ export default function EventModal({
                   </div>
                 </div>
               </div>
-              
+
               <div className="modal-actions">
                 <div className="user-participation-status">
                   {event.is_participating ? (
@@ -251,19 +251,19 @@ export default function EventModal({
                     </div>
                   )}
                 </div>
-                
+
                 <div className="action-buttons">
                   {/* Кнопка записи/отмены участия */}
                   {!event.is_participating ? (
-                    <button 
+                    <button
                       className="btn-primary"
                       onClick={() => onParticipate(event.id)}
-                      disabled={isLoading || event.is_past || event.is_full || !event.is_active}
+                      disabled={isLoading || event.is_past || event.is_full || !isEventActive}
                       title={
-                        event.is_past ? 'Событие уже прошло' : 
-                        event.is_full ? 'Достигнут лимит участников' : 
-                        !event.is_active ? 'Событие не активно' : 
-                        'Записаться на мероприятие'
+                        event.is_past ? 'Событие уже прошло' :
+                          event.is_full ? 'Достигнут лимит участников' :
+                            !isEventActive ? 'Событие не активно' :
+                              'Записаться на мероприятие'
                       }
                     >
                       {isLoading ? (
@@ -275,14 +275,14 @@ export default function EventModal({
                         'Мест нет'
                       ) : event.is_past ? (
                         'Событие прошло'
-                      ) : !event.is_active ? (
+                      ) : !isEventActive ? (
                         'Не активно'
                       ) : (
                         'Записаться на мероприятие'
                       )}
                     </button>
                   ) : (
-                    <button 
+                    <button
                       className="btn-secondary"
                       onClick={() => onCancelParticipation(event.id)}
                       disabled={isLoading || event.is_past}
@@ -298,9 +298,9 @@ export default function EventModal({
                       )}
                     </button>
                   )}
-                  
+
                   {/* Кнопка поделиться */}
-                  <button 
+                  <button
                     className="btn-outline"
                     onClick={() => onShare(event)}
                     title="Поделиться событием"
@@ -308,10 +308,10 @@ export default function EventModal({
                     <Share2 size={18} />
                     Поделиться
                   </button>
-                  
+
                   {/* Кнопка редактирования для админа */}
                   {isAdmin && onEdit && (
-                    <button 
+                    <button
                       className="btn-secondary"
                       onClick={() => onEdit(event)}
                       title="Редактировать событие"

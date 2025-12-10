@@ -14,12 +14,12 @@ class EventsTableSeeder extends Seeder
         // Создаем тестовых пользователей
         $organizer = User::factory()->create([
             'name' => 'Тестовый Организатор',
-            'email' => 'organizer@example.com',
+            'email' => 'art.petrovich13@gmail.com',
         ]);
         
         $participant = User::factory()->create([
             'name' => 'Тестовый Участник',
-            'email' => 'participant@example.com',
+            'email' => 'artembeslostij@gmail.com',
         ]);
         
         // Создаем события разных типов

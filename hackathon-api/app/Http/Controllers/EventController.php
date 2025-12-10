@@ -227,107 +227,112 @@ class EventController extends Controller
     /**
      * Подтверждение участия в событии
      */
-    public function participate($id)
-    {
-        try {
-            $user = Auth::user();
-            $event = Event::withCount(['participants' => function ($q) {
-                $q->where('status', 'confirmed');
-            }])->find($id);
-            
-            if (!$event) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Событие не найдено'
-                ], 404);
-            }
-            
-            // Проверяем, что событие активно
-            if (!$event->isActive()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Событие не активно',
-                    'message' => 'Вы не можете участвовать в неактивном или прошедшем событии'
-                ], 400);
-            }
-            
-            // Проверяем, не участвует ли уже пользователь
-            if ($event->isUserParticipating($user->id)) {
+   public function participate($id)
+{
+    try {
+        $user = Auth::user();
+        $event = Event::withCount(['participants' => function ($q) {
+            $q->where('status', 'confirmed');
+        }])->find($id);
+        
+        if (!$event) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Событие не найдено'
+            ], 404);
+        }
+        
+        // Проверяем, что событие активно
+        if (!$event->isActive()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Событие не активно',
+                'message' => 'Вы не можете участвовать в неактивном или прошедшем событии'
+            ], 400);
+        }
+        
+        // Проверяем, не участвует ли уже пользователь (используем firstOrCreate)
+        $participant = Participant::where('user_id', $user->id)
+            ->where('event_id', $event->id)
+            ->first();
+        
+        if ($participant) {
+            // Если запись уже существует, проверяем статус
+            if ($participant->status === 'confirmed') {
                 return response()->json([
                     'success' => false,
                     'error' => 'Вы уже участвуете',
                     'message' => 'Вы уже подтвердили участие в этом событии'
                 ], 400);
+            } else {
+                // Если статус не 'confirmed', обновляем на 'confirmed'
+                $participant->update([
+                    'status' => 'confirmed',
+                    'registered_at' => now(),
+                    'cancelled_at' => null,
+                ]);
             }
-            
-            // Проверяем лимит участников
-            if ($event->isFull()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Достигнут лимит участников',
-                    'message' => 'К сожалению, все места уже заняты'
-                ], 400);
-            }
-            
-            // Создаем запись об участии
+        } else {
+            // Создаем новую запись об участии
             $participant = Participant::create([
                 'user_id' => $user->id,
                 'event_id' => $event->id,
                 'status' => 'confirmed',
                 'registered_at' => now(),
             ]);
-            
-            // Отправляем уведомление организатору
-            try {
-                Mail::to($event->organizer->email)->send(new NewParticipantMail($user, $event, $participant));
-                
-                Log::info('Уведомление отправлено организатору', [
-                    'event_id' => $event->id,
-                    'organizer_id' => $event->organizer->id,
-                    'participant_id' => $user->id,
-                ]);
-            } catch (\Exception $mailException) {
-                Log::error('Ошибка отправки уведомления организатору: ' . $mailException->getMessage());
-                // Не прерываем выполнение
-            }
-            
-            // Логируем успешное участие
-            Log::info('Пользователь подтвердил участие в событии', [
-                'user_id' => $user->id,
-                'event_id' => $event->id,
-                'participant_id' => $participant->id,
-            ]);
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Участие успешно подтверждено',
-                'data' => [
-                    'participant' => [
-                        'id' => $participant->id,
-                        'status' => $participant->status,
-                        'registered_at' => $participant->registered_at->format('Y-m-d H:i:s'),
-                    ],
-                    'event' => [
-                        'participants_count' => $event->participants_count + 1,
-                        'available_spots' => $event->availableSpots(),
-                    ]
-                ]
-            ], 201);
-            
-        } catch (\Exception $e) {
-            Log::error('Ошибка при подтверждении участия: ' . $e->getMessage(), [
-                'event_id' => $id,
-                'user_id' => Auth::id(),
-                'exception' => $e
-            ]);
-            
-            return response()->json([
-                'success' => false,
-                'error' => 'Ошибка при подтверждении участия',
-                'message' => 'Произошла внутренняя ошибка сервера'
-            ], 500);
         }
+        
+        // Отправляем уведомление организатору
+        try {
+            Mail::to($event->organizer->email)->send(new NewParticipantMail($user, $event, $participant));
+            
+            Log::info('Уведомление отправлено организатору', [
+                'event_id' => $event->id,
+                'organizer_id' => $event->organizer->id,
+                'participant_id' => $user->id,
+            ]);
+        } catch (\Exception $mailException) {
+            Log::error('Ошибка отправки уведомления организатору: ' . $mailException->getMessage());
+            // Не прерываем выполнение
+        }
+        
+        // Логируем успешное участие
+        Log::info('Пользователь подтвердил участие в событии', [
+            'user_id' => $user->id,
+            'event_id' => $event->id,
+            'participant_id' => $participant->id,
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Участие успешно подтверждено',
+            'data' => [
+                'participant' => [
+                    'id' => $participant->id,
+                    'status' => $participant->status,
+                    'registered_at' => $participant->registered_at->format('Y-m-d H:i:s'),
+                ],
+                'event' => [
+                    'participants_count' => $event->participants_count + 1,
+                    'available_spots' => $event->availableSpots(),
+                ]
+            ]
+        ], 201);
+        
+    } catch (\Exception $e) {
+        Log::error('Ошибка при подтверждении участия: ' . $e->getMessage(), [
+            'event_id' => $id,
+            'user_id' => Auth::id(),
+            'exception' => $e
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'error' => 'Ошибка при подтверждении участия',
+            'message' => 'Произошла внутренняя ошибка сервера'
+        ], 500);
     }
+}
     
     /**
      * Отмена участия в событии

@@ -40,7 +40,7 @@ const EventsPage = () => {
     if (currentUser) {
       loadEvents();
     }
-  }, [activeTab, currentPage]);
+  }, [activeTab, currentPage, currentUser]);
 
   const checkAuthAndLoadData = async () => {
     const token = localStorage.getItem('token');
@@ -80,6 +80,8 @@ const EventsPage = () => {
       setIsLoading(false);
     }
   };
+
+  
 
   const showAlert = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotificationMessage(`${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'} ${message}`);

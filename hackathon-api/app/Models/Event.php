@@ -67,16 +67,26 @@ class Event extends Model
      */
     public function isActive(): bool
     {
-        return $this->status === 'active' 
+        // Для отображения - просто статус active
+        return $this->status === 'active';
+    }
+
+    public function isAvailableForParticipation(): bool
+    {
+        return $this->status === 'active'
+            && !$this->isPast()
+            && !$this->isFull()
             && Carbon::now()->between($this->start_date, $this->end_date);
     }
+
+
 
     /**
      * Проверка, является ли событие прошедшим
      */
     public function isPast(): bool
     {
-        return $this->status === 'past' || Carbon::now()->gt($this->end_date);
+        return Carbon::now()->gt($this->end_date);
     }
 
     /**
@@ -87,7 +97,7 @@ class Event extends Model
         if (!$this->max_participants) {
             return false;
         }
-        
+
         return $this->confirmedParticipants()->count() >= $this->max_participants;
     }
 
@@ -99,7 +109,7 @@ class Event extends Model
         if (!$this->max_participants) {
             return null;
         }
-        
+
         return max(0, $this->max_participants - $this->confirmedParticipants()->count());
     }
 
