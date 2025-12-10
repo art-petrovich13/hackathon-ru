@@ -1,0 +1,223 @@
+.create-event-modal {
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.create-event-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.create-event-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+}
+.create-event-modal .modal-content {
+  padding: 24px;
+}
+.create-event-modal .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+.create-event-modal .form-grid .full-width {
+  grid-column: 1/-1;
+}
+.create-event-modal .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.create-event-modal .form-group label {
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+.create-event-modal .form-group label.required:after {
+  content: " *";
+  color: #ef4444;
+}
+.create-event-modal .form-group input, .create-event-modal .form-group textarea, .create-event-modal .form-group select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.create-event-modal .form-group input:focus, .create-event-modal .form-group textarea:focus, .create-event-modal .form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.create-event-modal .form-group input:disabled, .create-event-modal .form-group textarea:disabled, .create-event-modal .form-group select:disabled {
+  background-color: #f9fafb;
+  cursor: not-allowed;
+}
+.create-event-modal .form-group input.error, .create-event-modal .form-group textarea.error, .create-event-modal .form-group select.error {
+  border-color: #ef4444;
+}
+.create-event-modal .form-group input.error:focus, .create-event-modal .form-group textarea.error:focus, .create-event-modal .form-group select.error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+.create-event-modal .form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+.create-event-modal .form-group select {
+  background-color: white;
+  cursor: pointer;
+}
+.create-event-modal .form-group .error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.create-event-modal .form-group small {
+  color: #6b7280;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.create-event-modal .input-with-icon {
+  position: relative;
+}
+.create-event-modal .input-with-icon svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.create-event-modal .input-with-icon input {
+  padding-left: 36px;
+  width: 100%;
+}
+.create-event-modal .image-preview {
+  margin-top: 10px;
+}
+.create-event-modal .image-preview img {
+  width: 100%;
+  max-width: 300px;
+  height: 150px;
+  -o-object-fit: cover;
+     object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+.create-event-modal .payment-type-selector {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+.create-event-modal .payment-type-selector .payment-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.create-event-modal .payment-type-selector .payment-option:hover {
+  background-color: #f9fafb;
+}
+.create-event-modal .payment-type-selector .payment-option input[type=radio] {
+  margin: 0;
+}
+.create-event-modal .payment-type-selector .payment-option span {
+  font-size: 14px;
+  color: #374151;
+}
+.create-event-modal .users-selection {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+.create-event-modal .users-selection .users-list {
+  padding: 8px;
+}
+.create-event-modal .users-selection .user-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.create-event-modal .users-selection .user-checkbox:hover {
+  background-color: #f9fafb;
+}
+.create-event-modal .users-selection .user-checkbox input[type=checkbox] {
+  margin: 0;
+}
+.create-event-modal .users-selection .user-checkbox .user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.create-event-modal .users-selection .user-checkbox .user-info .user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+.create-event-modal .users-selection .user-checkbox .user-info .user-email {
+  font-size: 12px;
+  color: #6b7280;
+}
+.create-event-modal .users-selection .selected-count {
+  padding: 12px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #374151;
+  background-color: #f9fafb;
+}
+.create-event-modal .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+.create-event-modal .form-actions button {
+  min-width: 120px;
+  justify-content: center;
+}
+.create-event-modal .form-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .create-event-modal .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .create-event-modal .modal-content {
+    padding: 16px;
+  }
+  .create-event-modal .form-actions {
+    flex-direction: column;
+  }
+  .create-event-modal .form-actions button {
+    width: 100%;
+  }
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}/*# sourceMappingURL=EditButtonmain.css.map */
