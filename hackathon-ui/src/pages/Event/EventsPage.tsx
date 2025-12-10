@@ -29,7 +29,7 @@ const EventsPage = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pagination, setPagination] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -51,7 +51,7 @@ const EventsPage = () => {
 
     try {
       const userResponse = await getCurrentUser();
-      if (userResponse.success && userResponse.data) { // ✅ Добавлена проверка
+      if (userResponse.success && userResponse.data) {
         setCurrentUser(userResponse.data.user);
         localStorage.setItem('user', JSON.stringify(userResponse.data.user));
       } else {
@@ -69,7 +69,7 @@ const EventsPage = () => {
     setIsLoading(true);
     try {
       const response = await getEvents(activeTab, currentPage);
-      if (response.success && response.data) { // ✅ Уже есть проверка
+      if (response.success && response.data) {
         setEvents(response.data.events);
         setPagination(response.data.pagination);
       }
@@ -80,8 +80,6 @@ const EventsPage = () => {
       setIsLoading(false);
     }
   };
-
-  
 
   const showAlert = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotificationMessage(`${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'} ${message}`);
@@ -98,7 +96,7 @@ const EventsPage = () => {
         loadEvents();
         if (selectedEvent?.id === id) {
           const eventResponse = await getEvent(id);
-          if (eventResponse.success && eventResponse.data) { // ✅ Добавлена проверка
+          if (eventResponse.success && eventResponse.data) {
             setSelectedEvent(eventResponse.data.data);
           }
         }
@@ -122,7 +120,7 @@ const EventsPage = () => {
           loadEvents();
           if (selectedEvent?.id === id) {
             const eventResponse = await getEvent(id);
-            if (eventResponse.success && eventResponse.data) { // ✅ Добавлена проверка
+            if (eventResponse.success && eventResponse.data) {
               setSelectedEvent(eventResponse.data.data);
             }
           }
@@ -148,16 +146,20 @@ const EventsPage = () => {
     navigate('/login');
   };
 
+  // ✅ ИСПРАВЛЕННЫЙ ПОИСК (единственное изменение)
   const filteredEvents = events.filter(event => {
-    if (searchQuery.trim() === '') return true;
-    
+    if (!searchQuery.trim()) return true;
+
     const query = searchQuery.toLowerCase();
-    return (
-      event.title.toLowerCase().includes(query) ||
-      event.description.toLowerCase().includes(query) ||
-      event.location.toLowerCase().includes(query) ||
-      (event.organizer_name && event.organizer_name.toLowerCase().includes(query))
-    );
+
+    return [
+      event.title,
+      event.description,
+      event.location,
+      event.organizer_name,
+    ]
+      .filter(Boolean)
+      .some(field => String(field).toLowerCase().includes(query));
   });
 
   if (!currentUser) {
@@ -171,7 +173,6 @@ const EventsPage = () => {
 
   return (
     <div className="events-page">
-      {/* Уведомления */}
       {showNotification && (
         <div className="notification">
           <div className="notification-content">
@@ -187,7 +188,6 @@ const EventsPage = () => {
         </div>
       )}
 
-      {/* Основной контент */}
       <div className="content">
         <div className="content-wrapper">
           <div className="content-header">
@@ -195,6 +195,7 @@ const EventsPage = () => {
               <h1>События</h1>
               <p className="subtitle">Добро пожаловать, {currentUser.name}</p>
             </div>
+
             <div className="header-actions">
               <div className="search-container">
                 <Search size={18} />
@@ -224,7 +225,6 @@ const EventsPage = () => {
             <button 
               className={`tab ${activeTab === 'my' ? 'active' : ''}`} 
               onClick={() => setActiveTab('my')}
-              title="Мои события"
             >
               <div className="tab-content">
                 <Heart size={20} />
@@ -235,7 +235,6 @@ const EventsPage = () => {
             <button 
               className={`tab ${activeTab === 'active' ? 'active' : ''}`} 
               onClick={() => setActiveTab('active')}
-              title="Активные события"
             >
               <div className="tab-content">
                 <Calendar size={20} />
@@ -246,7 +245,6 @@ const EventsPage = () => {
             <button 
               className={`tab ${activeTab === 'past' ? 'active' : ''}`} 
               onClick={() => setActiveTab('past')}
-              title="Прошедшие события"
             >
               <div className="tab-content">
                 <TrendingUp size={20} />
@@ -255,7 +253,7 @@ const EventsPage = () => {
             </button>
           </div>
 
-          {/* Список событий */}
+          {/* Список */}
           <div className="event-list">
             {isLoading ? (
               <div className="empty-state">
@@ -273,6 +271,7 @@ const EventsPage = () => {
                 <div className="events-count">
                   Найдено событий: <span>{filteredEvents.length}</span>
                 </div>
+
                 <div className="events-grid">
                   {filteredEvents.map(event => (
                     <EventCard
@@ -286,7 +285,7 @@ const EventsPage = () => {
                     />
                   ))}
                 </div>
-                
+
                 {pagination && pagination.last_page > 1 && (
                   <div className="pagination">
                     <button 
@@ -310,7 +309,6 @@ const EventsPage = () => {
         </div>
       </div>
 
-      {/* Модальное окно события */}
       {selectedEvent && (
         <EventModal
           event={selectedEvent}
