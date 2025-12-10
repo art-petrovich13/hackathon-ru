@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://entrance-meets-shaw-released.trycloudflare.com/api';
+const API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 interface ApiResponse {
   success: boolean;
@@ -14,9 +14,6 @@ interface RequestOptions {
   body?: any;
 }
 
-
-
-// Остальной код остается без изменений
 async function apiRequest<T = ApiResponse>(
   endpoint: string,
   options: RequestOptions = {}
@@ -29,7 +26,7 @@ async function apiRequest<T = ApiResponse>(
       'Content-Type': 'application/json',
       ...headers,
     },
-    credentials: 'include' // Добавляем для отправки куки, если нужно
+    credentials: 'include' 
   }
 
   if (body) {
@@ -39,9 +36,7 @@ async function apiRequest<T = ApiResponse>(
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config)
     
-    // Проверяем, успешен ли ответ
     if (!response.ok) {
-      // Пытаемся получить ошибку из JSON
       let errorData
       try {
         errorData = await response.json()

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -53,5 +54,23 @@ class User extends Authenticatable
     public function isAdmin()
     {
         return $this->role === 'admin';
+    }
+
+    public function organizedEvents(): HasMany
+    {
+        return $this->hasMany(Event::class, 'created_by');
+    }
+
+    public function participations(): HasMany
+    {
+        return $this->hasMany(Participant::class);
+    }
+
+    public function participatingEvents()
+    {
+        return $this->belongsToMany(Event::class, 'participants')
+            ->withPivot('status', 'registered_at')
+            ->wherePivot('status', 'confirmed')
+            ->withTimestamps();
     }
 }

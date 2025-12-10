@@ -16,9 +16,265 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
+
+    public function login(Request $request)
+    {
+        try {
+            // 1. Валидация данных
+            $validator = Validator::make($request->all(), [
+                'email' => 'required|email',
+                'password' => 'required|string|min:8',
+            ], [
+                'email.required' => 'Email обязателен для заполнения',
+                'email.email' => 'Введите корректный email адрес',
+                'password.required' => 'Пароль обязателен для заполнения',
+                'password.min' => 'Пароль должен содержать минимум 8 символов',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // 2. Поиск пользователя по email
+            $user = User::where('email', $request->email)->first();
+
+            // 3. Проверка существования пользователя
+            if (!$user) {
+                Log::warning('Попытка входа с несуществующим email', [
+                    'email' => $request->email,
+                    'ip_address' => $request->ip()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Неверные учетные данные',
+                    'message' => 'Пользователь с таким email не найден'
+                ], 401);
+            }
+
+            // 4. Проверка статуса пользователя
+            if ($user->status !== 'active') {
+                Log::warning('Попытка входа неактивного пользователя', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'status' => $user->status,
+                    'ip_address' => $request->ip()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Аккаунт не активен',
+                    'message' => 'Ваш аккаунт отключен или заблокирован. Обратитесь к администратору.'
+                ], 403);
+            }
+
+            // 5. Проверка подтверждения email (если требуется)
+            if (!$user->email_verified_at) {
+                Log::warning('Попытка входа неподтвержденного пользователя', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'ip_address' => $request->ip()
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Email не подтвержден',
+                    'message' => 'Для входа необходимо подтвердить email адрес. Проверьте вашу почту или запросите новый код подтверждения.',
+                    'data' => [
+                        'email' => $user->email,
+                        'needs_verification' => true
+                    ]
+                ], 403);
+            }
+
+            // 6. Проверка пароля
+            if (!Hash::check($request->password, $user->password)) {
+                // Увеличиваем счетчик неудачных попыток
+                $failedAttempts = Cache::increment('login_failed_' . $user->email, 1);
+                Cache::put('login_failed_' . $user->email, $failedAttempts, now()->addMinutes(30));
+                
+                Log::warning('Неудачная попытка входа: неверный пароль', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'failed_attempts' => $failedAttempts,
+                    'ip_address' => $request->ip()
+                ]);
+                
+                // Проверяем блокировку после 5 неудачных попыток
+                if ($failedAttempts >= 5) {
+                    Log::alert('Превышено количество попыток входа для пользователя', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
+                        'failed_attempts' => $failedAttempts,
+                        'ip_address' => $request->ip()
+                    ]);
+                    
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Слишком много попыток',
+                        'message' => 'Превышено количество попыток входа. Попробуйте через 30 минут или восстановите пароль.',
+                        'data' => [
+                            'blocked_until' => now()->addMinutes(30)->format('Y-m-d H:i:s')
+                        ]
+                    ], 429);
+                }
+                
+                $remainingAttempts = 5 - $failedAttempts;
+                
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Неверные учетные данные',
+                    'message' => 'Неверный пароль. Осталось попыток: ' . $remainingAttempts,
+                    'data' => [
+                        'remaining_attempts' => $remainingAttempts
+                    ]
+                ], 401);
+            }
+
+            // 7. Сброс счетчика неудачных попыток при успешном входе
+            Cache::forget('login_failed_' . $user->email);
+
+            // 8. Создание токена аутентификации
+            $token = $user->createToken('auth-token', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'role' => $user->role,
+                'name' => $user->name
+            ])->plainTextToken;
+
+            // 9. Обновление времени последнего входа
+            $user->last_login_at = now();
+            $user->last_login_ip = $request->ip();
+            $user->save();
+
+            // 10. Логирование успешного входа
+            Log::info('Успешный вход пользователя', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'ip_address' => $request->ip(),
+                'login_time' => now()->format('Y-m-d H:i:s')
+            ]);
+
+            // 11. Возврат успешного ответа
+            return response()->json([
+                'success' => true,
+                'message' => 'Вход выполнен успешно',
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'last_login_at' => $user->last_login_at,
+                    ],
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                    'expires_in' => config('sanctum.expiration') ? config('sanctum.expiration') * 60 : null,
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            Log::error('Ошибка при входе в систему: ' . $e->getMessage(), [
+                'request_data' => $request->except(['password']),
+                'exception' => $e,
+                'ip_address' => $request->ip()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при входе в систему',
+                'message' => 'Произошла внутренняя ошибка сервера. Пожалуйста, попробуйте позже.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Выход из системы (logout)
+     */
+    public function logout(Request $request)
+    {
+        try {
+            // Получаем текущего аутентифицированного пользователя
+            $user = $request->user();
+            
+            // Удаляем текущий токен
+            $request->user()->currentAccessToken()->delete();
+            
+            // Логируем выход
+            Log::info('Пользователь вышел из системы', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'logout_time' => now()->format('Y-m-d H:i:s')
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Вы успешно вышли из системы'
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('Ошибка при выходе из системы: ' . $e->getMessage(), [
+                'user_id' => optional($request->user())->id,
+                'exception' => $e
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при выходе из системы'
+            ], 500);
+        }
+    }
+
+    /**
+     * Получение информации о текущем пользователе
+     */
+    public function me(Request $request)
+    {
+        try {
+            $user = $request->user();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Не авторизован'
+                ], 401);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'role' => $user->role,
+                        'email_verified_at' => $user->email_verified_at,
+                        'last_login_at' => $user->last_login_at,
+                        'created_at' => $user->created_at,
+                    ]
+                ]
+            ], 200);
+            
+        } catch (\Exception $e) {
+            Log::error('Ошибка при получении данных пользователя: ' . $e->getMessage(), [
+                'user_id' => optional($request->user())->id,
+                'exception' => $e
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Ошибка при получении данных'
+            ], 500);
+        }
+    }
+
     /**
      * Регистрация нового пользователя
      */
@@ -360,91 +616,94 @@ class AuthController extends Controller
      * Проверка токена для сброса пароля
      */
     public function checkResetToken(Request $request)
-    {
-        try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email',
-                'token' => 'required',
-            ]);
+{
+    try {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'token' => 'required',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            $passwordReset = DB::table('password_resets')
-                ->where('email', $request->email)
-                ->first();
-
-            if (!$passwordReset) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Токен не найден',
-                    'message' => 'Запросите новый токен для сброса пароля'
-                ], 400);
-            }
-
-            if (!Hash::check($request->token, $passwordReset->token)) {
-                Log::warning('Неверный токен для сброса пароля', [
-                    'email' => $request->email,
-                    'provided_token' => $request->token
-                ]);
-                
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Неверный токен'
-                ], 400);
-            }
-
-            if (now()->gt($passwordReset->expires_at)) {
-                DB::table('password_resets')->where('email', $request->email)->delete();
-                
-                Log::info('Токен для сброса пароля истек', [
-                    'email' => $request->email
-                ]);
-                
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Срок действия токена истек',
-                    'message' => 'Запросите новый токен для сброса пароля'
-                ], 400);
-            }
-
-            // Рассчитываем оставшееся время в минутах
-            $remainingMinutes = now()->diffInMinutes($passwordReset->expires_at, false);
-            $isValid = $remainingMinutes > 0;
-
-            Log::info('Токен для сброса пароля проверен', [
-                'email' => $request->email,
-                'is_valid' => $isValid,
-                'remaining_minutes' => $remainingMinutes
-            ]);
-
+        if ($validator->fails()) {
             return response()->json([
-                'success' => true,
-                'message' => 'Токен действителен',
-                'data' => [
-                    'email' => $request->email,
-                    'is_valid' => $isValid,
-                    'expires_at' => $passwordReset->expires_at->format('Y-m-d H:i:s'),
-                    'remaining_minutes' => max(0, $remainingMinutes),
-                ]
-            ], 200);
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        } catch (\Exception $e) {
-            Log::error('Ошибка при проверке токена: ' . $e->getMessage(), [
-                'request_data' => $request->all(),
-                'exception' => $e
+        $passwordReset = DB::table('password_resets')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$passwordReset) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Токен не найден',
+                'message' => 'Запросите новый токен для сброса пароля'
+            ], 400);
+        }
+
+        if (!Hash::check($request->token, $passwordReset->token)) {
+            Log::warning('Неверный токен для сброса пароля', [
+                'email' => $request->email,
+                'provided_token' => $request->token
             ]);
             
             return response()->json([
                 'success' => false,
-                'error' => 'Ошибка при проверке токена'
-            ], 500);
+                'error' => 'Неверный токен'
+            ], 400);
         }
+
+        // Преобразуем строку в объект Carbon
+        $expiresAt = \Carbon\Carbon::parse($passwordReset->expires_at);
+        
+        if (now()->gt($expiresAt)) {
+            DB::table('password_resets')->where('email', $request->email)->delete();
+            
+            Log::info('Токен для сброса пароля истек', [
+                'email' => $request->email
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Срок действия токена истек',
+                'message' => 'Запросите новый токен для сброса пароля'
+            ], 400);
+        }
+
+        // Рассчитываем оставшееся время в минутах
+        $remainingMinutes = now()->diffInMinutes($expiresAt, false);
+        $isValid = $remainingMinutes > 0;
+
+        Log::info('Токен для сброса пароля проверен', [
+            'email' => $request->email,
+            'is_valid' => $isValid,
+            'remaining_minutes' => $remainingMinutes
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Токен действителен',
+            'data' => [
+                'email' => $request->email,
+                'is_valid' => $isValid,
+                'expires_at' => $expiresAt->format('Y-m-d H:i:s'), // Теперь это объект Carbon
+                'remaining_minutes' => max(0, $remainingMinutes),
+            ]
+        ], 200);
+
+    } catch (\Exception $e) {
+        Log::error('Ошибка при проверке токена: ' . $e->getMessage(), [
+            'request_data' => $request->all(),
+            'exception' => $e
+        ]);
+        
+        return response()->json([
+            'success' => false,
+            'error' => 'Ошибка при проверке токена'
+        ], 500);
     }
+}
 
     /**
      * Сброс пароля
@@ -494,7 +753,7 @@ class AuthController extends Controller
             }
 
             // Проверяем, не истек ли срок действия токена
-            if (now()->gt($passwordReset->expires_at)) {
+           if (now()->gt(\Carbon\Carbon::parse($passwordReset->expires_at))) {
                 DB::table('password_resets')->where('email', $request->email)->delete();
                 
                 return response()->json([

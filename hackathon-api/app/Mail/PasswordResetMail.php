@@ -30,7 +30,7 @@ class PasswordResetMail extends Mailable
         $this->expiresAt = now()->addHours(1);
         
         // Генерируем URL для сброса пароля (если фронтенд известен)
-        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+        $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
         $this->resetUrl = $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($email);
     }
 
