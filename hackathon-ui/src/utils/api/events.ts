@@ -51,7 +51,7 @@ interface EventsResponse {
 }
 
 // Общая функция для API запросов с авторизацией
-async function apiRequest<T = any>(
+export async function apiRequest<T = any>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
