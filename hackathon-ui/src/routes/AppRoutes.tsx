@@ -1,7 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
-import EventsPage from '../pages/EventsPage.jsx';
+import EventsPage from '../pages/Event/EventsPage.jsx';
 import WelcomePage from '../pages/WelcomePage/WelcomePage.tsx';
 import Profile from '../pages/Profile/Profile';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 import Login from '../pages/Authorization/components/Login/Login';
 import Register from '../pages/Authorization/components/Register/Register';
@@ -14,7 +15,11 @@ export default function AppRoutes() {
     <Routes>
 
       <Route path="/" element={<EventsPage />} />
-      <Route path="/events" element={<EventsPage />} />
+      <Route path="/events" element={
+        <ProtectedRoute>
+          <EventsPage />
+        </ProtectedRoute>
+      } />
       <Route path="/welcome" element={<WelcomePage />} />
       <Route
         path="/profile"

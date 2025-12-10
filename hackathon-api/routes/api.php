@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EventController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,4 +34,8 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 // Защищенные маршруты (требуют аутентификации)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'getCurrentUser']);
+    Route::get('/events', [EventController::class, 'index']);
+    Route::get('/events/{id}', [EventController::class, 'show']);
+    Route::post('/events/{id}/participate', [EventController::class, 'participate']);
+    Route::post('/events/{id}/cancel', [EventController::class, 'cancel']);
 });

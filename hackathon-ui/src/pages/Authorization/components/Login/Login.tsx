@@ -12,33 +12,42 @@ export default function Login() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  // В обработчике handleSubmit:
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const response = await login({ email: email.trim(), password });
-      if (response.success) {
-        // Сохраняем токен
-        localStorage.setItem('token', response.data.token);
-        // Переходим на страницу событий
-        navigate('/events');
+  try {
+    const response = await login({ email: email.trim(), password });
+    if (response.success && response.data?.token) {
+      // Сохраняем токен
+      localStorage.setItem('token', response.data.token);
+      
+      // Сохраняем информацию о пользователе
+      if (response.data.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
       }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      if (err.error === 'Email не подтвержден') {
-        // Перенаправляем на страницу подтверждения email
-        navigate('/verify-email', { state: { email: email.trim() } });
-      } else if (err.message) {
-        setError(err.message);
-      } else {
-        setError('Произошла ошибка при входе');
-      }
-    } finally {
-      setLoading(false);
+      
+      // Переходим на страницу событий
+      navigate('/events');
+    } else {
+      setError(response.error || 'Ошибка при входе');
     }
-  };
+  } catch (err: any) {
+    console.error('Login error:', err);
+    if (err.error === 'Email не подтвержден') {
+      // Перенаправляем на страницу подтверждения email
+      navigate('/verify-email', { state: { email: email.trim() } });
+    } else if (err.message) {
+      setError(err.message);
+    } else {
+      setError('Произошла ошибка при входе');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className={styles.container}>
